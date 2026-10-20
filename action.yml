@@ -1,0 +1,45 @@
+name: SignalCore knowledge sync
+description: Keeps a SignalCore agent's knowledge in step with this repository's docs, on every push.
+author: SignalCore
+branding:
+  icon: book-open
+  color: purple
+
+inputs:
+  key:
+    description: A secret key (sk_…) with the read and write scopes, from the repository's secrets.
+    required: true
+  config:
+    description: The config, from the repository's root.
+    default: .signalcore/knowledge.yml
+  full:
+    description: "true to sync every file the config takes, not only what changed."
+    default: "false"
+  org:
+    description: The organization to act on, when the key's organization manages it (an agency's client).
+    default: ""
+  api:
+    description: The API's address.
+    default: https://signalcore.ai/v1
+
+runs:
+  using: composite
+  steps:
+    # Its own Python, off the job's PATH: the job's later steps keep theirs.
+    - id: python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        update-environment: false
+    - shell: bash
+      run: |
+        "${{ steps.python.outputs.python-path }}" -m venv "$RUNNER_TEMP/signalcore-sync"
+        "$RUNNER_TEMP/signalcore-sync/bin/pip" install --quiet --disable-pip-version-check pyyaml==6.0.2
+    - shell: bash
+      run: '"$RUNNER_TEMP/signalcore-sync/bin/python" "$GITHUB_ACTION_PATH/sync.py"'
+      env:
+        SIGNALCORE_KEY: ${{ inputs.key }}
+        SIGNALCORE_CONFIG: ${{ inputs.config }}
+        SIGNALCORE_FULL: ${{ inputs.full }}
+        SIGNALCORE_ORG: ${{ inputs.org }}
+        SIGNALCORE_API: ${{ inputs.api }}
